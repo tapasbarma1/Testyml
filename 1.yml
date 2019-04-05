@@ -1,0 +1,66 @@
+pool:
+  name: Private-VS2017
+  demands:
+  - msbuild
+  - visualstudio
+  - Cmd
+
+#Your build pipeline references an undefined variable named ‘Parameters.solution’. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab. See https://go.microsoft.com/fwlink/?linkid=865972
+#Your build pipeline references an undefined variable named ‘Parameters.solution’. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab. See https://go.microsoft.com/fwlink/?linkid=865972
+#Your build pipeline references the ‘BuildPlatform’ variable, which you’ve selected to be settable at queue time. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
+#Your build pipeline references the ‘BuildConfiguration’ variable, which you’ve selected to be settable at queue time. Create or edit the build pipeline for this YAML file, define the variable on the Variables tab, and then select the option to make it settable at queue time. See https://go.microsoft.com/fwlink/?linkid=865971
+variables:
+  AssetPrefix: 'DevOps.Web'
+
+steps:
+- task: NuGetToolInstaller@0
+  displayName: 'Install Nuget'
+  inputs:
+    versionSpec: 4.4.1
+
+- task: NuGetCommand@2
+  displayName: 'NuGet restore'
+  inputs:
+    restoreSolution: '$(Parameters.solution)'
+    feedsToUse: config
+    nugetConfigPath: Tools/.nuget/nuget.config
+
+- task: VSBuild@1
+  displayName: DevOps.WebServer
+  inputs:
+    solution: '$(Parameters.solution)'
+    msbuildArgs: '/property:Deterministic=True /p:DeployOnBuild=True /p:DeployDefaultTarget=WebPublish /p:WebPublishMethod=FileSystem /p:DeleteExistingFiles=True /p:publishUrl="$(build.artifactstagingdirectory)\\$(AssetPrefix)" /t:WebServer'
+    platform: '$(BuildPlatform)'
+    configuration: '$(BuildConfiguration)'
+
+- script: |
+   del $(build.artifactstagingdirectory)\*.pdb /F /S /Q 
+   del $(build.artifactstagingdirectory)\*.txt /F /S /Q 
+   del $(build.artifactstagingdirectory)\*.config /F /S /Q 
+   del $(build.artifactstagingdirectory)\*.css /F /S /Q 
+   del $(build.artifactstagingdirectory)\*.js /F /S /Q 
+   del $(build.artifactstagingdirectory)\AppSettings.xml /F /S /Q 
+   del $(build.artifactstagingdirectory)\ConnectionStrings.xml /F /S /Q 
+   del $(build.artifactstagingdirectory)\StorageContainers.xml /F /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\zh-Hant   /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\zh-Hans  /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\ru   /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\ko  /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\ja   /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\it  /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\fr   /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\es   /S /Q 
+   rd $(build.artifactstagingdirectory)\$(AssetPrefix)\bin\de   /S /Q 
+  displayName: Cleanup
+
+- task: BatchScript@1
+  displayName: 'List Build Result'
+  inputs:
+    filename: 'tools/CIX/CIX.exe '
+    arguments: '--ListFiles --FolderName  $(build.artifactstagingdirectory)'
+
+- task: BatchScript@1
+  displayName: 'Publish to Storage'
+  inputs:
+    filename: 'tools/CIX/CIX.exe '
+    arguments: '--Publish --PathToPublish $(Build.ArtifactStagingDirectory) '
